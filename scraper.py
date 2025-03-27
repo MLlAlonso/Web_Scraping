@@ -11,16 +11,19 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Leer las credenciales del archivo .env
-username = os.getenv("campus_user")  # Usando campus_user
-password = os.getenv("campus_pwd")  # Usando campus_pwd
-
-# Verificar que las credenciales se están cargando correctamente
-print(f"USERNAME: {username}")
-print(f"PASSWORD: {password}")
+username = os.getenv("campus_user")
+password = os.getenv("campus_pwd")
 
 # Configurar el WebDriver
 options = webdriver.ChromeOptions()
 driver = webdriver.Chrome(options=options)
+
+# Obtener la ruta de la carpeta Documentos
+documents_path = os.path.join(os.path.expanduser("~"), "Documents", "Estudiantes Cursos")
+
+# Crear la carpeta si no existe
+if not os.path.exists(documents_path):
+    os.makedirs(documents_path)
 
 # Lista de URLs de los cursos
 urls = [
@@ -38,114 +41,87 @@ urls = [
     "https://campus.elhubdeseguridad.com/wp-admin/?page=stm-lms-dashboard#/course/13342"
 ]
 
-# Ruta relativa donde se guardarán los archivos CSV
-folder_path = os.path.join(os.getcwd(), "cursos_csv")
-
-# Crear la carpeta si no existe
-if not os.path.exists(folder_path):
-    os.makedirs(folder_path)
-
-def obtener_nombre_curso(driver):
-    """ Extrae el nombre del curso desde el bloque HTML """
+def obtener_nombre_curso():
+    """Extrae el nombre del curso desde la página."""
     try:
-        titulo_elemento = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "div.titles h2"))
-        )
-        return titulo_elemento.text.strip().replace(",", "")  # Remover comas para evitar errores en el CSV
+        titulo_elemento = driver.find_element(By.XPATH, "//div[@class='titles']/h2")
+        return titulo_elemento.text.strip().replace(" ", "_").replace(",", "")
     except:
         return "Curso_Desconocido"
 
 try:
     # Ir a la página de login
-    driver.get("https://campus.elhubdeseguridad.com/wp-login.php?redirect_to=https%3A%2F%2Fcampus.elhubdeseguridad.com%2Fwp-admin%2F&reauth=1")
-    print("Abriendo la página...")
-
-    # Esperar a que los campos de login sean visibles
+    driver.get("https://campus.elhubdeseguridad.com/wp-login.php")
     WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.ID, "user_login")))
-    print("Página cargada. Buscando campos de inicio de sesión...")
 
-    # Introducir credenciales desde las variables de entorno
+    # Ingresar credenciales
     driver.find_element(By.ID, "user_login").send_keys(username)
     driver.find_element(By.ID, "user_pass").send_keys(password)
-
-    # Enviar formulario
     driver.find_element(By.ID, "wp-submit").click()
-    print("Enviando formulario de inicio de sesión...")
 
-    # Esperar la redirección después del login
+    # Esperar redirección
     WebDriverWait(driver, 18).until(EC.url_contains("wp-admin"))
-    print("URL actual después del login:", driver.current_url)
 
-    # Abrir nuevas pestañas y recorrer las URLs
-    for index, url in enumerate(urls):
-        # Abrir una nueva pestaña con la URL
-        driver.execute_script(f"window.open('{url}', '_blank');")
-        time.sleep(2)  # Esperar un poco para que la nueva pestaña se cargue
+    # Crear el archivo CSV donde se almacenarán todos los datos
+    file_path = os.path.join(documents_path, "Estudiantes_Cursos.csv")
+    
+    # Abrir el archivo en modo de escritura
+    with open(file_path, mode="w", newline="", encoding="utf-8-sig") as file:
+        writer = csv.writer(file)
+        writer.writerow(["Nombre", "Email", "Comenzó", "Progreso", "Curso"])
 
-        # Cambiar a la nueva pestaña
-        driver.switch_to.window(driver.window_handles[-1])
+        for url in urls:
+            # Abrir una nueva pestaña con la URL
+            driver.execute_script(f"window.open('{url}', '_blank');")
+            time.sleep(2)
+            driver.switch_to.window(driver.window_handles[-1])
 
-        # Esperar que la tabla cargue correctamente
-        WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CLASS_NAME, "name")))
-        print(f"Extrayendo datos del curso: {url}")
+            # Esperar que cargue la página del curso
+            WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CLASS_NAME, "name")))
 
-        # Obtener el nombre del curso
-        nombre_curso = obtener_nombre_curso(driver)
+            # Obtener nombre del curso
+            nombre_curso = obtener_nombre_curso()
 
-        # Obtener todas las filas de la tabla
-        filas = driver.find_elements(By.XPATH, "//table//tr")
+            # Extraer datos de estudiantes
+            filas = driver.find_elements(By.XPATH, "//table//tr")
+            curso_datos = []
 
-        # Guardar los datos del curso en la lista
-        curso_datos = []
+            for fila in filas:
+                try:
+                    nombre = fila.find_element(By.CLASS_NAME, "author__info").text
+                except:
+                    nombre = "No encontrado"
 
-        for fila in filas:
-            try:
-                nombre = fila.find_element(By.CLASS_NAME, "author__info").text
-            except:
-                nombre = "No encontrado"
+                try:
+                    email = fila.find_element(By.CLASS_NAME, "email").text
+                except:
+                    email = "No encontrado"
 
-            try:
-                email = fila.find_element(By.CLASS_NAME, "email").text
-            except:
-                email = "No encontrado"
+                try:
+                    tiempo = fila.find_element(By.CLASS_NAME, "time").text.replace("hace", "").strip()
+                except:
+                    tiempo = "No encontrado"
 
-            try:
-                tiempo = fila.find_element(By.CLASS_NAME, "time").text
-                tiempo = tiempo.replace("hace", "").strip()  # Eliminar la palabra "hace" y limpiar espacios
-            except:
-                tiempo = "No encontrado"
+                try:
+                    progress_bar = fila.find_element(By.XPATH, ".//div[contains(@class, 'progress-bar')]")
+                    progreso = progress_bar.get_attribute("style").split("width:")[1].strip().replace(";", "") if "width:" in progress_bar.get_attribute("style") else "No encontrado"
+                except:
+                    progreso = "No encontrado"
 
-            try:
-                # Buscar el progreso dentro de la fila basado en la clase específica
-                progress_bar = fila.find_element(By.XPATH, ".//div[contains(@class, 'progress-bar')]")
-                progreso = progress_bar.get_attribute("style")  # Extraer el atributo "style"
+                # Añadir la fila con el nombre del curso
+                curso_datos.append([nombre, email, tiempo, progreso, nombre_curso])
 
-                # Extraer el valor numérico del width
-                progreso = progreso.split("width:")[1].strip().replace(";", "") if "width:" in progreso else "No encontrado"
-            except:
-                progreso = "No encontrado"
+            # Escribir los datos de los estudiantes en el archivo CSV
+            writer.writerows(curso_datos)
+            print(f"Datos de {url} guardados en {file_path} ✅")
 
-            # Guardar los datos en la lista de curso
-            curso_datos.append([nombre, email, tiempo, progreso])
-
-        # Guardar los datos en un archivo CSV con el nombre del curso
-        file_name = f"Estudiantes_Curso_{nombre_curso}.csv"
-        file_path = os.path.join(folder_path, file_name)
-
-        with open(file_path, mode="w", newline="", encoding="utf-8-sig") as file:
-            writer = csv.writer(file)
-            writer.writerow(["Nombre", "Email", "Comenzó", "Progreso"])  # Encabezados
-            writer.writerows(curso_datos)  # Escribir los datos
-
-        print(f"Datos de {nombre_curso} guardados en {file_path} ✅")
-
-        # Cambiar a la primera pestaña para continuar con la siguiente URL
-        driver.switch_to.window(driver.window_handles[0])
+            # Cerrar la pestaña y volver a la original
+            driver.close()
+            driver.switch_to.window(driver.window_handles[0])
 
 except Exception as e:
     print("Error:", e)
 
 finally:
-    # Cerrar todas las pestañas y el navegador
     driver.quit()
     print("Navegador cerrado.")
