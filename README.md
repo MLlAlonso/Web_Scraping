@@ -34,7 +34,8 @@ cd web-scraping
 ### 3. Configurar variables de entorno
 Crear un archivo **.env** en la raíz del proyecto con las credenciales necesarias:
 ```ini
-USERNAME=tu_usuario\PASSWORD=tu_contraseña
+APP_USERNAME=tu_usuario
+APP_PASSWORD=tu_contraseña
 ```
 
 ## Ejecución

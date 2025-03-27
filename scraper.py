@@ -1,11 +1,11 @@
 import csv
+import os
+import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from dotenv import load_dotenv
-import os
-import time
 
 # Cargar las variables de entorno del archivo .env
 load_dotenv()
@@ -17,16 +17,6 @@ password = os.getenv("campus_pwd")  # Usando campus_pwd
 # Verificar que las credenciales se están cargando correctamente
 print(f"USERNAME: {username}")
 print(f"PASSWORD: {password}")
-
-# Obtener la ruta de la carpeta principal del script actual
-base_path = os.path.dirname(os.path.abspath(__file__))
-
-# Definir la ruta de la carpeta donde se guardarán los CSV como subcarpeta de la carpeta principal
-folder_path = os.path.join(base_path, "cursos_csv")
-
-# Crear la carpeta si no existe
-if not os.path.exists(folder_path):
-    os.makedirs(folder_path)
 
 # Configurar el WebDriver
 options = webdriver.ChromeOptions()
@@ -48,8 +38,22 @@ urls = [
     "https://campus.elhubdeseguridad.com/wp-admin/?page=stm-lms-dashboard#/course/13342"
 ]
 
-# Lista para almacenar los datos
-datos = []
+# Ruta relativa donde se guardarán los archivos CSV
+folder_path = os.path.join(os.getcwd(), "cursos_csv")
+
+# Crear la carpeta si no existe
+if not os.path.exists(folder_path):
+    os.makedirs(folder_path)
+
+def obtener_nombre_curso(driver):
+    """ Extrae el nombre del curso desde el bloque HTML """
+    try:
+        titulo_elemento = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "div.titles h2"))
+        )
+        return titulo_elemento.text.strip().replace(",", "")  # Remover comas para evitar errores en el CSV
+    except:
+        return "Curso_Desconocido"
 
 try:
     # Ir a la página de login
@@ -84,6 +88,9 @@ try:
         # Esperar que la tabla cargue correctamente
         WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CLASS_NAME, "name")))
         print(f"Extrayendo datos del curso: {url}")
+
+        # Obtener el nombre del curso
+        nombre_curso = obtener_nombre_curso(driver)
 
         # Obtener todas las filas de la tabla
         filas = driver.find_elements(By.XPATH, "//table//tr")
@@ -121,16 +128,16 @@ try:
             # Guardar los datos en la lista de curso
             curso_datos.append([nombre, email, tiempo, progreso])
 
-        # Guardar los datos en un archivo CSV por curso
-        curso_nombre = url.split('/')[-1]  # Extraer un nombre único para cada archivo (parte de la URL)
-        file_path = os.path.join(folder_path, f"Estudiantes_Curso_{curso_nombre}.csv")
+        # Guardar los datos en un archivo CSV con el nombre del curso
+        file_name = f"Estudiantes_Curso_{nombre_curso}.csv"
+        file_path = os.path.join(folder_path, file_name)
 
         with open(file_path, mode="w", newline="", encoding="utf-8-sig") as file:
             writer = csv.writer(file)
             writer.writerow(["Nombre", "Email", "Comenzó", "Progreso"])  # Encabezados
             writer.writerows(curso_datos)  # Escribir los datos
 
-        print(f"Datos de {url} guardados en {file_path} ✅")
+        print(f"Datos de {nombre_curso} guardados en {file_path} ✅")
 
         # Cambiar a la primera pestaña para continuar con la siguiente URL
         driver.switch_to.window(driver.window_handles[0])
