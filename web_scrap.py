@@ -87,7 +87,6 @@ try:
             try:
                 progress_bar = fila.find_element(By.XPATH, ".//div[contains(@class, 'progress-bar')]")
                 progreso = progress_bar.get_attribute("style").split("width:")[1].strip().replace(";", "") if "width:" in progress_bar.get_attribute("style") else "No encontrado"
-                progreso = progreso.replace("%", "")  # Quitar el %
             except:
                 progreso = "No encontrado"
             
@@ -95,7 +94,7 @@ try:
         
         with open(file_path, mode="w", newline="", encoding="utf-8-sig") as file:
             writer = csv.writer(file)
-            writer.writerow(["Nombre", "Email", "Inicio", "Progreso (porcentaje)"])
+            writer.writerow(["Nombre", "Email", "Inicio", "Progreso"])
             writer.writerows(curso_datos)
         
         print(f"Datos de {url} guardados en {file_path} ✅")

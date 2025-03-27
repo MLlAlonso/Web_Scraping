@@ -45,9 +45,12 @@ def obtener_nombre_curso():
     """Extrae el nombre del curso desde la página."""
     try:
         titulo_elemento = driver.find_element(By.XPATH, "//div[@class='titles']/h2")
-        return titulo_elemento.text.strip().replace(" ", "_").replace(",", "")
+        # Eliminar el texto "Estudiantes de" si está presente
+        nombre_curso = titulo_elemento.text.strip().replace(" ", "_").replace(",", "")
+        return nombre_curso.replace("Estudiantes_de", "").strip()  # Aquí se asegura de eliminar el texto específico
     except:
         return "Curso_Desconocido"
+
 
 try:
     # Ir a la página de login
@@ -68,7 +71,7 @@ try:
     # Abrir el archivo en modo de escritura
     with open(file_path, mode="w", newline="", encoding="utf-8-sig") as file:
         writer = csv.writer(file)
-        writer.writerow(["Nombre", "Email", "Inicio", "Progreso (porcentaje)", "Curso"])
+        writer.writerow(["Nombre", "Email", "Inicio", "Progreso", "Curso"])
 
         for url in urls:
             # Abrir una nueva pestaña con la URL
@@ -105,9 +108,6 @@ try:
                 try:
                     progress_bar = fila.find_element(By.XPATH, ".//div[contains(@class, 'progress-bar')]")
                     progreso = progress_bar.get_attribute("style").split("width:")[1].strip().replace(";", "") if "width:" in progress_bar.get_attribute("style") else "No encontrado"
-                    # Eliminar el símbolo "%" del progreso
-                    if progreso != "No encontrado":
-                        progreso = progreso.replace("%", "")
                 except:
                     progreso = "No encontrado"
 
