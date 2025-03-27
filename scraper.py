@@ -68,7 +68,7 @@ try:
     # Abrir el archivo en modo de escritura
     with open(file_path, mode="w", newline="", encoding="utf-8-sig") as file:
         writer = csv.writer(file)
-        writer.writerow(["Nombre", "Email", "Comenzó", "Progreso", "Curso"])
+        writer.writerow(["Nombre", "Email", "Inicio", "Progreso (porcentaje)", "Curso"])
 
         for url in urls:
             # Abrir una nueva pestaña con la URL
@@ -105,8 +105,15 @@ try:
                 try:
                     progress_bar = fila.find_element(By.XPATH, ".//div[contains(@class, 'progress-bar')]")
                     progreso = progress_bar.get_attribute("style").split("width:")[1].strip().replace(";", "") if "width:" in progress_bar.get_attribute("style") else "No encontrado"
+                    # Eliminar el símbolo "%" del progreso
+                    if progreso != "No encontrado":
+                        progreso = progreso.replace("%", "")
                 except:
                     progreso = "No encontrado"
+
+                # Omitir los estudiantes con datos no encontrados o eliminados
+                if nombre == "No encontrado" or nombre == "Usuario eliminado":
+                    continue
 
                 # Añadir la fila con el nombre del curso
                 curso_datos.append([nombre, email, tiempo, progreso, nombre_curso])
