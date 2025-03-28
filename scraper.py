@@ -45,7 +45,6 @@ def obtener_nombre_curso():
     """Extrae el nombre del curso desde la página."""
     try:
         titulo_elemento = driver.find_element(By.XPATH, "//div[@class='titles']/h2")
-        # Eliminar el texto "Estudiantes de" si está presente
         nombre_curso = titulo_elemento.text.strip().replace(" ", "_").replace(",", "")
         return nombre_curso.replace("Estudiantes_de", "").strip()  # Aquí se asegura de eliminar el texto específico
     except:
