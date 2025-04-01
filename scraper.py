@@ -18,12 +18,9 @@ password = os.getenv("campus_pwd")
 options = webdriver.ChromeOptions()
 driver = webdriver.Chrome(options=options)
 
-# Obtener la ruta de la carpeta Documentos
+# Ruta de la carpeta Documentos
 documents_path = os.path.join(os.path.expanduser("~"), "Documents", "Estudiantes Cursos")
-
-# Crear la carpeta si no existe
-if not os.path.exists(documents_path):
-    os.makedirs(documents_path)
+os.makedirs(documents_path, exist_ok=True)
 
 # Lista de URLs de los cursos
 urls = [
@@ -41,93 +38,78 @@ urls = [
     "https://campus.elhubdeseguridad.com/wp-admin/?page=stm-lms-dashboard#/course/13342"
 ]
 
-def obtener_nombre_curso():
+def obtener_nombre_curso(driver):
     """Extrae el nombre del curso desde la página."""
     try:
         titulo_elemento = driver.find_element(By.XPATH, "//div[@class='titles']/h2")
-        nombre_curso = titulo_elemento.text.strip().replace(" ", "_").replace(",", "")
-        return nombre_curso.replace("Estudiantes_de", "").strip()  # Aquí se asegura de eliminar el texto específico
+        return titulo_elemento.text.strip().replace(" ", "_").replace(",", "").replace("Estudiantes_de", "").strip()
     except:
         return "Curso_Desconocido"
 
+def extraer_datos_estudiantes(driver):
+    """Extrae los datos de los estudiantes desde la tabla."""
+    estudiantes = []
+    filas = driver.find_elements(By.XPATH, "//table//tr")
+    for fila in filas:
+        try:
+            nombre = fila.find_element(By.CLASS_NAME, "author__info").text
+            if nombre == "Usuario eliminado":
+                continue
+        except:
+            continue
 
-try:
-    # Ir a la página de login
+        email = fila.find_element(By.CLASS_NAME, "email").text if fila.find_elements(By.CLASS_NAME, "email") else "No encontrado"
+        tiempo = fila.find_element(By.CLASS_NAME, "time").text.replace("hace", "").strip() if fila.find_elements(By.CLASS_NAME, "time") else "No encontrado"
+        progreso = "No encontrado"
+        try:
+            progress_bar = fila.find_element(By.XPATH, ".//div[contains(@class, 'progress-bar')]")
+            if "width:" in progress_bar.get_attribute("style"):
+                progreso = progress_bar.get_attribute("style").split("width:")[1].strip().replace(";", "")
+        except:
+            pass
+
+        estudiantes.append([nombre, email, tiempo, progreso])
+    return estudiantes
+
+def iniciar_sesion(driver, username, password):
+    """Inicia sesión en la plataforma."""
     driver.get("https://campus.elhubdeseguridad.com/wp-login.php")
     WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.ID, "user_login")))
-
-    # Ingresar credenciales
     driver.find_element(By.ID, "user_login").send_keys(username)
     driver.find_element(By.ID, "user_pass").send_keys(password)
     driver.find_element(By.ID, "wp-submit").click()
-
-    # Esperar redirección
     WebDriverWait(driver, 18).until(EC.url_contains("wp-admin"))
 
-    # Crear el archivo CSV donde se almacenarán todos los datos
-    file_path = os.path.join(documents_path, "Estudiantes_Cursos.csv")
-    
-    # Abrir el archivo en modo de escritura
+def procesar_cursos(driver, urls, file_path):
+    """Procesa cada curso y guarda los datos en un archivo CSV."""
     with open(file_path, mode="w", newline="", encoding="utf-8-sig") as file:
         writer = csv.writer(file)
         writer.writerow(["Nombre", "Email", "Inicio", "Progreso", "Curso"])
 
         for url in urls:
-            # Abrir una nueva pestaña con la URL
             driver.execute_script(f"window.open('{url}', '_blank');")
             time.sleep(2)
             driver.switch_to.window(driver.window_handles[-1])
 
-            # Esperar que cargue la página del curso
-            WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CLASS_NAME, "name")))
+            try:
+                WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CLASS_NAME, "name")))
+                nombre_curso = obtener_nombre_curso(driver)
+                estudiantes = extraer_datos_estudiantes(driver)
+                for estudiante in estudiantes:
+                    writer.writerow(estudiante + [nombre_curso])
+                print(f"Datos de {url} guardados en {file_path} ✅")
+            except Exception as e:
+                print(f"Error procesando {url}: {e}")
+            finally:
+                driver.close()
+                driver.switch_to.window(driver.window_handles[0])
 
-            # Obtener nombre del curso
-            nombre_curso = obtener_nombre_curso()
-
-            # Extraer datos de estudiantes
-            filas = driver.find_elements(By.XPATH, "//table//tr")
-            curso_datos = []
-
-            for fila in filas:
-                try:
-                    nombre = fila.find_element(By.CLASS_NAME, "author__info").text
-                except:
-                    nombre = "No encontrado"
-
-                try:
-                    email = fila.find_element(By.CLASS_NAME, "email").text
-                except:
-                    email = "No encontrado"
-
-                try:
-                    tiempo = fila.find_element(By.CLASS_NAME, "time").text.replace("hace", "").strip()
-                except:
-                    tiempo = "No encontrado"
-
-                try:
-                    progress_bar = fila.find_element(By.XPATH, ".//div[contains(@class, 'progress-bar')]")
-                    progreso = progress_bar.get_attribute("style").split("width:")[1].strip().replace(";", "") if "width:" in progress_bar.get_attribute("style") else "No encontrado"
-                except:
-                    progreso = "No encontrado"
-
-                # Omitir los estudiantes con datos no encontrados o eliminados
-                if nombre == "No encontrado" or nombre == "Usuario eliminado":
-                    continue
-
-                # Añadir la fila con el nombre del curso
-                curso_datos.append([nombre, email, tiempo, progreso, nombre_curso])
-
-            # Escribir los datos de los estudiantes en el archivo CSV
-            writer.writerows(curso_datos)
-            print(f"Datos de {url} guardados en {file_path} ✅")
-
-            # Cerrar la pestaña y volver a la original
-            driver.close()
-            driver.switch_to.window(driver.window_handles[0])
-
+try:
+    iniciar_sesion(driver, username, password)
+    file_path = os.path.join(documents_path, "Estudiantes_Cursos.csv")
+    procesar_cursos(driver, urls, file_path)
 except Exception as e:
     print("Error:", e)
-
 finally:
     driver.quit()
     print("Navegador cerrado.")
