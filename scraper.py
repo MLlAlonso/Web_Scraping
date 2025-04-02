@@ -44,7 +44,8 @@ def iniciar_sesion():
 
 def obtener_nombre_curso():
     try:
-        return driver.find_element(By.XPATH, "//div[@class='titles']/h2").text.strip().replace(" ", "_").replace(",", "")
+        nombre_curso = driver.find_element(By.XPATH, "//div[@class='titles']/h2").text.strip()
+        return nombre_curso.replace("Estudiantes de ", "").replace(" ", "_").replace(",", "")
     except:
         return "Curso_Desconocido"
 
