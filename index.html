@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estudiantes Campus HUB</title>
+</head>
+
+<body>
+    <main>
+        <div class="logo"></div>
+        <h1>Estudiantes Campus HUB</h1>
+        <h2>Bienvenido a la plataforma de gestión de estudiantes</h2>
+        <p>En esta plataforma podrás gestionar la información de los estudiantes de manera eficiente y sencilla.</p>
+        <p>Para comenzar, por favor selecciona una de las siguientes opciones:</p>
+
+        <label for="courses">Selecciona los cursos deseados:</label>
+        <select id="courses" multiple>
+            <option value="opc0">Descargar todo</option>
+            <option value="opc1">Curso de Seguridad e Higiene Industrial</option>
+            <option value="opc2">Curso de Análisis Riesgo, con Constancia DC-3</option>
+            <option value="opc3">Capacitación Primeros Auxilios Básicos en el Hogar</option>
+            <option value="opc4">Curso Diseño de Cursos con Capacitación Presenciales, con Constancia DC-3</option>
+            <option value="opc5">WEBINAR: La importancia de la NOM-035 en tu centro de trabajo</option>
+            <option value="opc6">Curso de Equipo de Protección Personal, con Constancia DC-3</option>
+            <option value="opc7">Curso de Factores de Riesgo Psicosocial en las Empresas, con Constancia DC-3</option>
+            <option value="opc8">Curso de Búsqueda y Rescate, con Constancia DC-3</option>
+            <option value="opc9">Curso de Prevención de Incendios Uso y Manejo de Extintores con Constancia DC-3</option>
+            <option value="opc10">Curso de Primeros Auxilios Básicos, con Constancia DC-3</option>
+            <option value="opc11">Curso de Diseño de Escenarios y Evacuación de Inmuebles, con Constancia DC-3</option>
+        </select>
+
+        <button id="addCourse">Añadir Curso</button>
+        <h3>Cursos seleccionados:</h3>
+        <ul id="selectedCourses"></ul>
+
+        <script>
+            const coursesDropdown = document.getElementById('courses');
+            const addCourseButton = document.getElementById('addCourse');
+            const selectedCoursesList = document.getElementById('selectedCourses');
+
+            addCourseButton.addEventListener('click', () => {
+            const selectedOptions = Array.from(coursesDropdown.selectedOptions);
+            selectedOptions.forEach(option => {
+                const existingItem = Array.from(selectedCoursesList.children).find(
+                item => item.dataset.value === option.value
+                );
+                if (!existingItem) {
+                const courseItem = document.createElement('li');
+                courseItem.textContent = option.textContent;
+                courseItem.dataset.value = option.value;
+
+                const removeButton = document.createElement('button');
+                removeButton.textContent = 'Eliminar';
+                removeButton.addEventListener('click', () => {
+                    selectedCoursesList.removeChild(courseItem);
+                });
+
+                courseItem.appendChild(removeButton);
+                selectedCoursesList.appendChild(courseItem);
+                }
+            });
+            });
+        </script>
+
+        <div>
+            <h3>Preferencia de generación de archivos .csv:</h3>
+            <label>
+                <input type="radio" name="csvPreference" value="single" checked>
+                Un solo archivo .csv para todos los cursos seleccionados
+            </label>
+            <br>
+            <label>
+                <input type="radio" name="csvPreference" value="multiple">
+                Un archivo .csv por cada curso
+            </label>
+        </div>
+
+        <script>
+            const csvPreferenceRadios = document.getElementsByName('csvPreference');
+
+            const getCsvPreference = () => {
+                let selectedPreference;
+                csvPreferenceRadios.forEach(radio => {
+                    if (radio.checked) {
+                        selectedPreference = radio.value;
+                    }
+                });
+
+                if (selectedPreference === 'single') {
+                    alert("Has seleccionado generar un solo archivo .csv.");
+                    // Lógica para generar un solo archivo .csv
+                } else if (selectedPreference === 'multiple') {
+                    alert("Has seleccionado generar un archivo .csv por cada curso.");
+                    // Lógica para generar múltiples archivos .csv
+                }
+            };
+
+            // Puedes llamar a getCsvPreference() cuando sea necesario
+        </script>
+    </main>
+</body>
+
+</html>
